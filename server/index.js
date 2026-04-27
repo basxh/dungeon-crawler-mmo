@@ -1,4 +1,5 @@
 const { createGameServer } = require('./app');
+const { CLASSES, SkillTree, createPlayerWithClass } = require('./skills');
 
 async function main() {
   const gameServer = createGameServer();
