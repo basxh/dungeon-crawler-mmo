@@ -3,207 +3,269 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dungeon Crawler MMO</title>
+    <title>Dungeon Crawler MMO 3D</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            color-scheme: dark;
+            --bg: #070b14;
+            --panel: rgba(9, 14, 28, 0.86);
+            --line: rgba(120, 161, 255, 0.25);
+            --text: #edf2ff;
+            --muted: #94a3b8;
+            --accent: #7c9cff;
+            --accent-2: #4ecca3;
+            --danger: #f87171;
+        }
         body {
-            background: #1a1a2e;
-            color: #eee;
-            font-family: 'Courier New', monospace;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            background: radial-gradient(circle at top, #16203a 0%, var(--bg) 60%);
+            color: var(--text);
+            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             min-height: 100vh;
             overflow: hidden;
         }
-        
+        button, input {
+            font: inherit;
+        }
         #loginScreen {
-            text-align: center;
-            padding: 40px;
-            background: #16213e;
-            border-radius: 10px;
-            border: 2px solid #0f3460;
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(180deg, rgba(3, 6, 12, 0.55), rgba(3, 6, 12, 0.88));
+            z-index: 20;
         }
-        
-        #loginScreen h1 {
-            color: #e94560;
-            margin-bottom: 20px;
-            font-size: 2.5em;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        .login-card {
+            width: min(520px, calc(100vw - 32px));
+            padding: 32px;
+            border-radius: 24px;
+            background: rgba(8, 12, 23, 0.94);
+            border: 1px solid var(--line);
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
         }
-        
-        #loginScreen input {
-            padding: 12px 20px;
-            font-size: 16px;
-            border: none;
-            border-radius: 5px;
-            margin: 10px;
-            background: #0f3460;
-            color: #fff;
-            width: 250px;
+        .login-card h1 {
+            font-size: clamp(2rem, 4vw, 3rem);
+            margin-bottom: 12px;
+            letter-spacing: 0.02em;
         }
-        
-        #loginScreen button {
-            padding: 12px 40px;
-            font-size: 16px;
-            background: #e94560;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
+        .login-card p {
+            color: var(--muted);
+            line-height: 1.6;
+            margin-bottom: 18px;
+        }
+        .input-row {
+            display: flex;
+            gap: 12px;
             margin-top: 20px;
-            transition: transform 0.2s;
         }
-        
-        #loginScreen button:hover {
-            transform: scale(1.05);
+        .input-row input {
+            flex: 1;
+            padding: 14px 16px;
+            border-radius: 14px;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(17, 24, 39, 0.9);
+            color: var(--text);
         }
-        
+        .input-row button,
+        #continueButton {
+            border: none;
+            border-radius: 14px;
+            padding: 14px 20px;
+            background: linear-gradient(135deg, var(--accent), #4460ff);
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.15s ease, opacity 0.2s ease;
+        }
+        .input-row button:disabled {
+            cursor: progress;
+            opacity: 0.75;
+        }
+        .input-row button:hover:not(:disabled),
+        #continueButton:hover {
+            transform: translateY(-1px);
+        }
+        #statusMessage {
+            display: block;
+            margin-top: 16px;
+            color: #c5d2ff;
+            min-height: 1.3em;
+        }
         #gameScreen {
             display: none;
-            width: 100%;
+            width: 100vw;
             height: 100vh;
+            position: relative;
         }
-        
-        #gameCanvas {
-            border: 3px solid #0f3460;
-            box-shadow: 0 0 20px rgba(233, 69, 96, 0.3);
+        #gameViewport {
+            width: 100%;
+            height: 100%;
         }
-        
-        #ui {
+        canvas {
+            display: block;
+        }
+        .hud-panel {
             position: fixed;
-            top: 10px;
-            left: 10px;
-            background: rgba(22, 33, 62, 0.9);
-            padding: 15px;
-            border-radius: 10px;
-            border: 1px solid #0f3460;
-            min-width: 200px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            backdrop-filter: blur(12px);
+            border-radius: 18px;
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
         }
-        
-        #ui h3 { color: #e94560; margin-bottom: 10px; }
-        #ui div { margin: 5px 0; }
-        
+        #ui {
+            top: 16px;
+            left: 16px;
+            width: 250px;
+            padding: 16px;
+        }
+        #weaponInfo {
+            top: 16px;
+            right: 16px;
+            width: 250px;
+            padding: 16px;
+        }
+        #controls {
+            bottom: 16px;
+            left: 16px;
+            width: 310px;
+            padding: 16px;
+            color: var(--muted);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+        .hud-title {
+            color: white;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            margin-bottom: 12px;
+            opacity: 0.8;
+        }
+        .stat-line,
+        .weapon-stat {
+            margin-top: 8px;
+        }
         .hp-bar {
             width: 100%;
-            height: 20px;
-            background: #333;
-            border-radius: 10px;
+            height: 14px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 999px;
             overflow: hidden;
-            margin: 5px 0;
+            margin-top: 8px;
         }
-        
         .hp-fill {
             height: 100%;
-            background: linear-gradient(90deg, #e94560, #ff6b6b);
-            transition: width 0.3s;
+            background: linear-gradient(90deg, var(--danger), #ffb36b);
+            transition: width 0.25s ease;
         }
-        
-        #weaponInfo {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: rgba(22, 33, 62, 0.9);
-            padding: 15px;
-            border-radius: 10px;
-            border: 1px solid #0f3460;
-            min-width: 200px;
-        }
-        
-        #weaponInfo h3 { color: #4ecca3; margin-bottom: 10px; }
-        .weapon-name { color: #fff; font-weight: bold; }
-        .weapon-stat { color: #aaa; margin: 3px 0; }
-        
-        #controls {
-            position: fixed;
-            bottom: 10px;
-            left: 10px;
-            background: rgba(22, 33, 62, 0.9);
-            padding: 10px;
-            border-radius: 10px;
-            font-size: 12px;
-            color: #aaa;
-        }
-
+        .rarity-common { color: #ffffff; }
+        .rarity-uncommon { color: #6ee7b7; }
+        .rarity-rare { color: #60a5fa; }
+        .rarity-epic { color: #c084fc; }
+        .rarity-legendary { color: #fbbf24; text-shadow: 0 0 12px rgba(251,191,36,0.45); }
         #levelComplete {
             display: none;
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: #16213e;
-            padding: 30px;
-            border-radius: 15px;
-            border: 3px solid #e94560;
+            inset: auto 50% 40px auto;
+            transform: translateX(50%);
+            width: min(420px, calc(100vw - 32px));
+            padding: 24px;
+            background: rgba(10, 14, 28, 0.96);
+            border-radius: 20px;
+            border: 1px solid rgba(124, 156, 255, 0.35);
+            box-shadow: 0 28px 48px rgba(0,0,0,0.32);
             text-align: center;
-            z-index: 1000;
         }
-
-        #levelComplete h2 { color: #4ecca3; margin-bottom: 20px; }
-
+        #levelComplete h2 {
+            color: var(--accent-2);
+            margin-bottom: 12px;
+        }
         #lootDisplay {
-            margin: 20px 0;
-            padding: 15px;
-            background: #0f3460;
-            border-radius: 10px;
+            margin: 18px 0;
+            padding: 16px;
+            border-radius: 16px;
+            background: rgba(17, 24, 39, 0.92);
+            line-height: 1.6;
         }
-
-        .rarity-common { color: #ffffff; }
-        .rarity-uncommon { color: #00ff00; }
-        .rarity-rare { color: #0088ff; }
-        .rarity-epic { color: #aa00ff; }
-        .rarity-legendary { color: #ffaa00; text-shadow: 0 0 10px #ffaa00; }
+        @media (max-width: 900px) {
+            #ui, #weaponInfo, #controls {
+                width: auto;
+                max-width: calc(100vw - 32px);
+            }
+            #weaponInfo {
+                top: auto;
+                right: 16px;
+                bottom: 16px;
+            }
+            #controls {
+                left: 50%;
+                transform: translateX(-50%);
+                bottom: 16px;
+            }
+        }
     </style>
 </head>
 <body>
     <div id="loginScreen">
-        <h1>⚔️ Dungeon Crawler MMO</h1>
-        <p>Enter the depths...</p>
-        <input type="text" id="playerName" placeholder="Dein Name" maxlength="20" value="Adventurer">
-        <br>
-        <button onclick="startGame()">Spielen</button>
+        <div class="login-card">
+            <h1>Dungeon Crawler MMO 3D</h1>
+            <p>
+                Der Dungeon läuft jetzt als 3D-Prototyp direkt im Browser: gleiche Multiplayer-Logik,
+                aber mit neuer Kamera, 3D-Welten und räumlicher Navigation.
+            </p>
+            <p>
+                Ziel der nächsten Ausbaustufe: schneller 3D-Vertical-Slice ohne kompletten Engine-Wechsel.
+            </p>
+            <div class="input-row">
+                <input type="text" id="playerName" placeholder="Dein Name" maxlength="20" value="Adventurer">
+                <button id="startButton">Spielen</button>
+            </div>
+            <small id="statusMessage">Bereit für den 3D-Dungeon.</small>
+        </div>
     </div>
 
     <div id="gameScreen">
-        <canvas id="gameCanvas"></canvas>
-        
-        <div id="ui">
-            <h3>⚡ Stats</h3>
-            <div id="playerNameDisplay">Name: -</div>
-            <div id="playerLevel">Level: 1</div>
-            <div id="playerXp">XP: 0/100</div>
-            <div>HP:</div>
+        <div id="gameViewport"></div>
+
+        <div id="ui" class="hud-panel">
+            <div class="hud-title">Abenteurer</div>
+            <div class="stat-line" id="playerNameDisplay">Name: -</div>
+            <div class="stat-line" id="playerLevel">Level: 1</div>
+            <div class="stat-line" id="playerXp">XP: 0/100</div>
+            <div class="stat-line">HP</div>
             <div class="hp-bar">
                 <div class="hp-fill" id="hpBar" style="width: 100%"></div>
             </div>
-            <div id="hpText">100/100</div>
-            <div id="dungeonLevel">Dungeon: 1</div>
+            <div class="stat-line" id="hpText">100/100</div>
+            <div class="stat-line" id="dungeonLevel">Dungeon: 1</div>
         </div>
 
-        <div id="weaponInfo">
-            <h3>🗡️ Weapon</h3>
-            <div id="weaponName" class="weapon-name">-</div>
-            <div class="weapon-stat" id="weaponDamage">Damage: -</div>
-            <div class="weapon-stat" id="weaponRange">Range: -</div>
-            <div class="weapon-stat" id="weaponSpeed">Speed: -</div>
+        <div id="weaponInfo" class="hud-panel">
+            <div class="hud-title">Ausgerüstete Waffe</div>
+            <div id="weaponName">-</div>
+            <div class="weapon-stat" id="weaponDamage">Schaden: -</div>
+            <div class="weapon-stat" id="weaponRange">Reichweite: -</div>
+            <div class="weapon-stat" id="weaponSpeed">Geschwindigkeit: -</div>
         </div>
 
-        <div id="controls">
-            <div><strong>WASD</strong> - Bewegen</div>
-            <div><strong>LEERTASTE</strong> - Angreifen</div>
-            <div><strong>E</strong> - Item aufheben</div>
-            <div><strong>🔴</strong> = Start, <strong>🟢</strong> = Exit</div>
+        <div id="controls" class="hud-panel">
+            <div><strong>WASD</strong> / <strong>Pfeiltasten</strong> — Bewegen</div>
+            <div><strong>Leertaste</strong> — Angreifen</div>
+            <div><strong>E</strong> — Loot aufheben</div>
+            <div><strong>Kamera</strong> — folgt automatisch dem Spieler</div>
+            <div><strong>Rot</strong> = Startpunkt, <strong>Grün</strong> = Exit</div>
         </div>
 
         <div id="levelComplete">
             <h2>Level Complete! 🎉</h2>
-            <p>Alle Monster besiegt!</p>
+            <p>Alle Monster besiegt — ein neuer Dungeon wartet.</p>
             <div id="lootDisplay"></div>
-            <button onclick="continueToNextLevel()">Nächstes Level</button>
+            <button id="continueButton">Weiter</button>
         </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="game.js"></script>
+    <script type="module" src="/src/main.mjs"></script>
 </body>
 </html>

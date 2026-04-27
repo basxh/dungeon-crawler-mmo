@@ -1,21 +1,22 @@
 # Dungeon Crawler MMO
 
-Browser-basiertes Dungeon Crawler MMO mit Procedural Generation, Loot-System und Echtzeit-Multiplayer.
+Browser-basiertes Dungeon Crawler MMO mit Procedural Generation, Loot-System, Echtzeit-Multiplayer und einer neuen 3D-Prototyp-Ansicht auf Basis von Three.js.
 
 ## Features
 
-- 🎮 Browser-basiertes Spiel (Canvas/WebGL)
+- 🎮 Browser-basiertes 3D-Spiel mit Three.js
 - 🗺️ Procedural generierte Höhlen-Level
 - ⚔️ Echtzeit-Kampfsystem
 - 🛡️ Verschiedene Waffentypen (Bogen, Schwert, Axt, Streitkolben, Armbrust)
 - 💎 Loot-System mit Seltenheitsstufen (Common → Legendary)
 - 👥 Multiplayer via WebSocket
 - 📈 Level-System
+- 🎥 Automatische Follow-Kamera im 3D-Dungeon
 
 ## Tech Stack
 
 - Backend: Node.js + Express + Socket.io
-- Frontend: HTML5 Canvas + Vanilla JS
+- Frontend: Vanilla JS Modules + Three.js
 - State: In-Memory (später Redis)
 
 ## Waffentypen
