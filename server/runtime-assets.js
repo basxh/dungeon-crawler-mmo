@@ -18,6 +18,8 @@ function copyDirectoryRecursive(sourceDir, targetDir) {
 
 function prepareStaticAssets(options = {}) {
   const sourceDir = options.sourceDir ?? path.join(__dirname, '../public');
+  const socketIoSourceDir =
+    options.socketIoSourceDir ?? path.join(path.dirname(require.resolve('socket.io/package.json')), 'client-dist');
   const isPackaged = options.isPackaged ?? Boolean(process.pkg);
 
   if (!isPackaged) {
@@ -25,7 +27,10 @@ function prepareStaticAssets(options = {}) {
   }
 
   const targetDir = options.targetDir ?? path.join(path.dirname(process.execPath), 'runtime-public');
+  const socketIoTargetDir = path.join(targetDir, 'socket.io');
+
   copyDirectoryRecursive(sourceDir, targetDir);
+  copyDirectoryRecursive(socketIoSourceDir, socketIoTargetDir);
   return targetDir;
 }
 
