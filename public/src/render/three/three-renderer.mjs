@@ -1,4 +1,5 @@
 import * as THREE from '../../../vendor/three.module.js';
+import { DEFAULT_CAMERA_CONFIG } from './camera-config.mjs';
 import { buildDungeonRenderData, gridToWorldPosition } from './dungeon-mesh-builder.mjs';
 
 const ENEMY_COLORS = {
@@ -15,8 +16,8 @@ function createActorMesh({ color }) {
   const group = new THREE.Group();
   const material = new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0.1, emissive: 0x000000 });
 
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 0.55, 4, 8), material);
-  body.position.y = 0.55;
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.34, 0.8, 4, 8), material);
+  body.position.y = 0.68;
   body.castShadow = true;
   body.receiveShadow = true;
   group.add(body);
@@ -86,11 +87,15 @@ export class ThreeRenderer {
   constructor(container) {
     this.container = container;
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x08101d);
-    this.scene.fog = new THREE.Fog(0x08101d, 9, 24);
+    this.scene.background = new THREE.Color(0x132238);
+    this.scene.fog = new THREE.Fog(0x132238, 14, 32);
 
-    this.camera = new THREE.PerspectiveCamera(65, 1, 0.1, 100);
-    this.camera.position.set(0, 9, 8);
+    this.camera = new THREE.PerspectiveCamera(70, 1, 0.1, 100);
+    this.camera.position.set(
+      DEFAULT_CAMERA_CONFIG.offset.x,
+      DEFAULT_CAMERA_CONFIG.offset.y,
+      DEFAULT_CAMERA_CONFIG.offset.z
+    );
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -123,17 +128,20 @@ export class ThreeRenderer {
   }
 
   addLights() {
-    const ambient = new THREE.AmbientLight(0x8094ff, 0.55);
+    const ambient = new THREE.AmbientLight(0xb9c8ff, 0.9);
     this.scene.add(ambient);
 
-    const moon = new THREE.DirectionalLight(0xcdd6ff, 1.2);
-    moon.position.set(6, 12, 4);
-    moon.castShadow = true;
-    moon.shadow.mapSize.width = 2048;
-    moon.shadow.mapSize.height = 2048;
-    this.scene.add(moon);
+    const sun = new THREE.DirectionalLight(0xffffff, 1.9);
+    sun.position.set(4, 8, 3);
+    sun.castShadow = true;
+    sun.shadow.mapSize.width = 2048;
+    sun.shadow.mapSize.height = 2048;
+    this.scene.add(sun);
 
-    const rim = new THREE.PointLight(0x4ecca3, 0.8, 20);
+    const fill = new THREE.HemisphereLight(0x87a8ff, 0x24324a, 0.85);
+    this.scene.add(fill);
+
+    const rim = new THREE.PointLight(0x4ecca3, 1.2, 14);
     rim.position.set(0, 2.5, 0);
     this.scene.add(rim);
     this.rimLight = rim;
@@ -162,14 +170,16 @@ export class ThreeRenderer {
     const renderData = buildDungeonRenderData(dungeon);
     this.currentBounds = renderData.bounds;
 
-    const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x243b53, roughness: 0.95 });
-    const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.85 });
     const floorGeometry = new THREE.BoxGeometry(1, 0.08, 1);
-    const wallGeometry = new THREE.BoxGeometry(1, 1.6, 1);
+    const wallGeometry = new THREE.BoxGeometry(1, 2.1, 1);
 
     renderData.floors.forEach((tile) => {
       const world = gridToWorldPosition(tile.x, tile.z, renderData.bounds);
-      const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+      const floorColor = (tile.x + tile.z) % 2 === 0 ? 0x4f6d8d : 0x3f5b78;
+      const floor = new THREE.Mesh(
+        floorGeometry,
+        new THREE.MeshStandardMaterial({ color: floorColor, roughness: 0.86, metalness: 0.04 })
+      );
       floor.position.set(world.x, -0.04, world.z);
       floor.receiveShadow = true;
       this.worldRoot.add(floor);
@@ -177,8 +187,12 @@ export class ThreeRenderer {
 
     renderData.walls.forEach((tile, index) => {
       const world = gridToWorldPosition(tile.x, tile.z, renderData.bounds);
-      const wall = new THREE.Mesh(wallGeometry, wallMaterial);
-      wall.position.set(world.x, 0.8, world.z);
+      const wallColor = index % 4 === 0 ? 0x9db4c9 : 0x7f95ad;
+      const wall = new THREE.Mesh(
+        wallGeometry,
+        new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.72, metalness: 0.08 })
+      );
+      wall.position.set(world.x, 1.05, world.z);
       wall.castShadow = true;
       wall.receiveShadow = true;
       this.worldRoot.add(wall);
@@ -359,11 +373,26 @@ export class ThreeRenderer {
     });
   }
 
-  updateCamera(deltaSeconds) {
-    const target = new THREE.Vector3(this.playerVisual.x, 0.8, this.playerVisual.z);
-    const offset = new THREE.Vector3(-4.2, 6.8, 4.7);
+  updateCamera(deltaSeconds, state) {
+    const direction = state.player?.direction || { x: 0, y: 1 };
+    const directionLength = Math.hypot(direction.x, direction.y) || 1;
+    const lookAhead = new THREE.Vector3(
+      (direction.x / directionLength) * DEFAULT_CAMERA_CONFIG.lookAheadDistance,
+      0,
+      (direction.y / directionLength) * DEFAULT_CAMERA_CONFIG.lookAheadDistance
+    );
+    const target = new THREE.Vector3(
+      this.playerVisual.x,
+      DEFAULT_CAMERA_CONFIG.lookTargetHeight,
+      this.playerVisual.z
+    ).add(lookAhead);
+    const offset = new THREE.Vector3(
+      DEFAULT_CAMERA_CONFIG.offset.x,
+      DEFAULT_CAMERA_CONFIG.offset.y,
+      DEFAULT_CAMERA_CONFIG.offset.z
+    );
     const desired = target.clone().add(offset);
-    const cameraDamping = Math.min(1, deltaSeconds * 5);
+    const cameraDamping = Math.min(1, deltaSeconds * DEFAULT_CAMERA_CONFIG.damping);
 
     this.camera.position.lerp(desired, cameraDamping);
     this.cameraTarget.lerp(target, cameraDamping);
@@ -389,7 +418,7 @@ export class ThreeRenderer {
     this.updateFloatingTexts(deltaSeconds);
 
     if (state.player) {
-      this.updateCamera(deltaSeconds);
+      this.updateCamera(deltaSeconds, state);
     }
 
     this.renderer.render(this.scene, this.camera);
