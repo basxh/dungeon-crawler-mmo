@@ -1,6 +1,73 @@
+import { buildMinimapModel } from './minimap-model.mjs';
+
 function setText(element, text) {
   if (element) {
     element.textContent = text;
+  }
+}
+
+function drawMinimap(canvas, model) {
+  if (!canvas) {
+    return;
+  }
+
+  const context = canvas.getContext('2d');
+  context.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (!model.width || !model.height) {
+    return;
+  }
+
+  const tileSize = Math.floor(Math.min(canvas.width / model.width, canvas.height / model.height));
+  const offsetX = Math.floor((canvas.width - model.width * tileSize) / 2);
+  const offsetY = Math.floor((canvas.height - model.height * tileSize) / 2);
+
+  const colors = {
+    wall: '#0f172a',
+    floor: '#29435c',
+    start: '#e94560',
+    exit: '#4ecca3',
+    enemy: '#fbbf24',
+    player: '#60a5fa',
+    grid: 'rgba(255,255,255,0.08)',
+  };
+
+  model.tiles.forEach((tile) => {
+    let fill = colors.floor;
+    if (tile.tile === 1) fill = colors.wall;
+    if (tile.tile === 2) fill = colors.start;
+    if (tile.tile === 3) fill = colors.exit;
+
+    context.fillStyle = fill;
+    context.fillRect(offsetX + tile.x * tileSize, offsetY + tile.y * tileSize, tileSize, tileSize);
+    context.strokeStyle = colors.grid;
+    context.strokeRect(offsetX + tile.x * tileSize, offsetY + tile.y * tileSize, tileSize, tileSize);
+  });
+
+  model.enemies.forEach((enemy) => {
+    context.fillStyle = colors.enemy;
+    context.beginPath();
+    context.arc(
+      offsetX + enemy.x * tileSize + tileSize / 2,
+      offsetY + enemy.y * tileSize + tileSize / 2,
+      Math.max(2, tileSize * 0.2),
+      0,
+      Math.PI * 2
+    );
+    context.fill();
+  });
+
+  if (model.player) {
+    context.fillStyle = colors.player;
+    context.beginPath();
+    context.arc(
+      offsetX + model.player.x * tileSize + tileSize / 2,
+      offsetY + model.player.y * tileSize + tileSize / 2,
+      Math.max(3, tileSize * 0.26),
+      0,
+      Math.PI * 2
+    );
+    context.fill();
   }
 }
 
@@ -23,6 +90,7 @@ export function createUIController() {
     weaponSpeed: document.getElementById('weaponSpeed'),
     levelComplete: document.getElementById('levelComplete'),
     lootDisplay: document.getElementById('lootDisplay'),
+    minimapCanvas: document.getElementById('minimapCanvas'),
   };
 
   function showConnectingState() {
@@ -82,6 +150,8 @@ export function createUIController() {
     } else if (elements.levelComplete) {
       elements.levelComplete.style.display = 'none';
     }
+
+    drawMinimap(elements.minimapCanvas, buildMinimapModel(state));
 
     if (state.statusMessage) {
       setStatus(state.statusMessage);

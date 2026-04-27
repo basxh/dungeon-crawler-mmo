@@ -4,6 +4,9 @@ const DEFAULT_STATE = {
   dungeon: null,
   enemies: [],
   lastDrop: null,
+  combatEvents: [],
+  playerDidAttack: false,
+  playerTookDamage: false,
   statusMessage: 'Verbinde zum Dungeon...'
 };
 

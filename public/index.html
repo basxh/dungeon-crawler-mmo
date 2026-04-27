@@ -134,6 +134,12 @@
             font-size: 0.95rem;
             line-height: 1.6;
         }
+        #minimapPanel {
+            top: 300px;
+            right: 16px;
+            width: 250px;
+            padding: 16px;
+        }
         .hud-title {
             color: white;
             font-size: 0.85rem;
@@ -164,6 +170,16 @@
         .rarity-rare { color: #60a5fa; }
         .rarity-epic { color: #c084fc; }
         .rarity-legendary { color: #fbbf24; text-shadow: 0 0 12px rgba(251,191,36,0.45); }
+        #minimapCanvas {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 1;
+            display: block;
+            margin-top: 8px;
+            border-radius: 14px;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
         #levelComplete {
             display: none;
             position: fixed;
@@ -247,6 +263,12 @@
             <div class="weapon-stat" id="weaponDamage">Schaden: -</div>
             <div class="weapon-stat" id="weaponRange">Reichweite: -</div>
             <div class="weapon-stat" id="weaponSpeed">Geschwindigkeit: -</div>
+        </div>
+
+        <div id="minimapPanel" class="hud-panel">
+            <div class="hud-title">Taktische Minimap</div>
+            <div style="color: var(--muted); font-size: 0.9rem; line-height: 1.5;">Gelb = Gegner, Blau = Spieler, Rot = Start, Grün = Exit</div>
+            <canvas id="minimapCanvas" width="220" height="220"></canvas>
         </div>
 
         <div id="controls" class="hud-panel">

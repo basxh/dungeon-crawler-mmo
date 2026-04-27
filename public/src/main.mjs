@@ -52,7 +52,17 @@ function startRenderLoop() {
     lastFrame = now;
 
     inputController?.update();
-    renderer.render(store.getState(), deltaSeconds);
+    const state = store.getState();
+    renderer.render(state, deltaSeconds);
+
+    if (state.combatEvents?.length || state.playerDidAttack || state.playerTookDamage) {
+      store.setState({
+        combatEvents: [],
+        playerDidAttack: false,
+        playerTookDamage: false,
+      });
+    }
+
     requestAnimationFrame(frame);
   }
 

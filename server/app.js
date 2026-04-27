@@ -431,6 +431,8 @@ function createGameServer(options = {}) {
           nearest.x = dungeon.startPos.x;
           nearest.y = dungeon.startPos.y;
           io.to(nearest.id).emit('died', { player: nearest });
+        } else {
+          io.to(nearest.id).emit('playerUpdated', nearest);
         }
       }
     });

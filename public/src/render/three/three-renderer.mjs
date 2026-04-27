@@ -9,9 +9,11 @@ const ENEMY_COLORS = {
   bat: 0x312e81,
 };
 
+const BASE_STATUS = '3D-Dungeon bereit. WASD zum Bewegen, Leertaste zum Angreifen.';
+
 function createActorMesh({ color }) {
   const group = new THREE.Group();
-  const material = new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0.1 });
+  const material = new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0.1, emissive: 0x000000 });
 
   const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 0.55, 4, 8), material);
   body.position.y = 0.55;
@@ -27,6 +29,14 @@ function createActorMesh({ color }) {
   shadow.position.y = 0.01;
   group.add(shadow);
 
+  group.userData = {
+    body,
+    material,
+    hitFlash: 0,
+    pulse: 0,
+    baseScale: 1,
+  };
+
   return group;
 }
 
@@ -40,17 +50,44 @@ function createMarker(color, radius = 0.28) {
   return mesh;
 }
 
-function applyWorldPosition(mesh, tilePosition, bounds) {
-  const world = gridToWorldPosition(tilePosition.x, tilePosition.y, bounds);
-  mesh.position.set(world.x, mesh.position.y, world.z);
+function createTorch(color, x, y, z) {
+  const torch = new THREE.Group();
+  const pole = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.05, 0.05, 0.9, 12),
+    new THREE.MeshStandardMaterial({ color: 0x6b4f2f, roughness: 0.9 })
+  );
+  pole.position.y = 0.45;
+  torch.add(pole);
+
+  const flame = new THREE.Mesh(
+    new THREE.SphereGeometry(0.12, 10, 10),
+    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.4 })
+  );
+  flame.position.y = 0.98;
+  torch.add(flame);
+
+  const light = new THREE.PointLight(color, 1.5, 6, 2);
+  light.position.y = 1.05;
+  torch.add(light);
+
+  torch.position.set(x, y, z);
+  return torch;
+}
+
+function triggerHitFlash(meshGroup, pulse = 0.22) {
+  if (!meshGroup?.userData) {
+    return;
+  }
+  meshGroup.userData.hitFlash = 0.22;
+  meshGroup.userData.pulse = Math.max(meshGroup.userData.pulse || 0, pulse);
 }
 
 export class ThreeRenderer {
   constructor(container) {
     this.container = container;
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x0b1020);
-    this.scene.fog = new THREE.Fog(0x0b1020, 10, 28);
+    this.scene.background = new THREE.Color(0x08101d);
+    this.scene.fog = new THREE.Fog(0x08101d, 9, 24);
 
     this.camera = new THREE.PerspectiveCamera(65, 1, 0.1, 100);
     this.camera.position.set(0, 9, 8);
@@ -74,6 +111,11 @@ export class ThreeRenderer {
     this.currentBounds = { width: 0, depth: 0 };
     this.playerVisual = { x: 0, z: 0, yaw: 0 };
     this.cameraTarget = new THREE.Vector3();
+    this.combatTextSprites = [];
+    this.previousPlayerHp = null;
+    this.previousEnemies = [];
+    this.playerAttackPulse = 0;
+    this.cameraShake = 0;
 
     this.addLights();
     this.handleResize();
@@ -81,10 +123,10 @@ export class ThreeRenderer {
   }
 
   addLights() {
-    const ambient = new THREE.AmbientLight(0x8aa0ff, 0.7);
+    const ambient = new THREE.AmbientLight(0x8094ff, 0.55);
     this.scene.add(ambient);
 
-    const moon = new THREE.DirectionalLight(0xcdd6ff, 1.3);
+    const moon = new THREE.DirectionalLight(0xcdd6ff, 1.2);
     moon.position.set(6, 12, 4);
     moon.castShadow = true;
     moon.shadow.mapSize.width = 2048;
@@ -133,14 +175,26 @@ export class ThreeRenderer {
       this.worldRoot.add(floor);
     });
 
-    renderData.walls.forEach((tile) => {
+    renderData.walls.forEach((tile, index) => {
       const world = gridToWorldPosition(tile.x, tile.z, renderData.bounds);
       const wall = new THREE.Mesh(wallGeometry, wallMaterial);
       wall.position.set(world.x, 0.8, world.z);
       wall.castShadow = true;
       wall.receiveShadow = true;
       this.worldRoot.add(wall);
+
+      if (index % 7 === 0) {
+        this.worldRoot.add(createTorch(0xf97316, world.x, 0, world.z));
+      }
     });
+
+    const floorPlate = new THREE.Mesh(
+      new THREE.BoxGeometry(renderData.bounds.width + 2, 0.5, renderData.bounds.depth + 2),
+      new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 1 })
+    );
+    floorPlate.position.set(0, -0.35, 0);
+    floorPlate.receiveShadow = true;
+    this.worldRoot.add(floorPlate);
 
     if (renderData.start) {
       const startMarker = createMarker(0xe94560);
@@ -155,6 +209,72 @@ export class ThreeRenderer {
       exitMarker.position.set(exitWorld.x, 0.05, exitWorld.z);
       this.worldRoot.add(exitMarker);
     }
+  }
+
+  spawnFloatingText({ text, color, worldX, worldZ }) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 96;
+    const context = canvas.getContext('2d');
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.font = 'bold 44px Inter, sans-serif';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillStyle = color;
+    context.fillText(text, canvas.width / 2, canvas.height / 2);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
+    const sprite = new THREE.Sprite(material);
+    sprite.position.set(worldX, 1.7, worldZ);
+    sprite.scale.set(1.8, 0.68, 1);
+    this.scene.add(sprite);
+
+    this.combatTextSprites.push({ sprite, ttl: 0.9 });
+  }
+
+  processCombatEvents(state) {
+    state.combatEvents?.forEach((event) => {
+      const world = gridToWorldPosition(event.x, event.y, this.currentBounds);
+      if (event.type === 'hit') {
+        const enemyEntry = this.enemyMeshes.get(event.id);
+        if (enemyEntry) {
+          triggerHitFlash(enemyEntry.mesh, 0.26);
+        }
+        this.spawnFloatingText({ text: `-${event.damage}`, color: '#fca5a5', worldX: world.x, worldZ: world.z });
+      }
+
+      if (event.type === 'death') {
+        this.spawnFloatingText({ text: 'KO', color: '#fbbf24', worldX: world.x, worldZ: world.z });
+      }
+    });
+
+    if (state.playerTookDamage) {
+      triggerHitFlash(this.playerMesh, 0.32);
+      this.cameraShake = Math.max(this.cameraShake, 0.22);
+    }
+
+    if (state.playerDidAttack) {
+      this.playerAttackPulse = 0.18;
+      triggerHitFlash(this.playerMesh, 0.18);
+    }
+  }
+
+  updateActorEffects(meshGroup, deltaSeconds) {
+    if (!meshGroup?.userData) {
+      return;
+    }
+
+    const data = meshGroup.userData;
+    data.hitFlash = Math.max(0, data.hitFlash - deltaSeconds);
+    data.pulse = Math.max(0, data.pulse - deltaSeconds);
+
+    const flashStrength = data.hitFlash > 0 ? data.hitFlash / 0.22 : 0;
+    data.material.emissive.setRGB(flashStrength, flashStrength * 0.28, flashStrength * 0.28);
+
+    const pulseStrength = data.pulse > 0 ? Math.sin((data.pulse / 0.3) * Math.PI) * 0.12 : 0;
+    const scale = data.baseScale + pulseStrength;
+    meshGroup.scale.setScalar(scale);
   }
 
   syncPlayer(state, deltaSeconds) {
@@ -175,10 +295,12 @@ export class ThreeRenderer {
       this.playerVisual.yaw = Math.atan2(direction.x, direction.y);
     }
 
-    this.playerMesh.position.set(this.playerVisual.x, 0, this.playerVisual.z);
+    const bob = state.connected ? Math.sin(performance.now() * 0.006) * 0.05 : 0;
+    this.playerMesh.position.set(this.playerVisual.x, bob, this.playerVisual.z);
     this.playerMesh.rotation.y = this.playerVisual.yaw;
-
     this.rimLight.position.set(this.playerVisual.x, 2.4, this.playerVisual.z);
+
+    this.updateActorEffects(this.playerMesh, deltaSeconds);
   }
 
   syncEnemies(state, deltaSeconds) {
@@ -189,6 +311,7 @@ export class ThreeRenderer {
       let enemyEntry = this.enemyMeshes.get(enemy.id);
       if (!enemyEntry) {
         const mesh = createActorMesh({ color: ENEMY_COLORS[enemy.type] || 0x94a3b8 });
+        mesh.userData.baseScale = 0.9;
         mesh.scale.setScalar(0.9);
         this.scene.add(mesh);
         enemyEntry = { mesh, x: 0, z: 0, yaw: 0 };
@@ -200,7 +323,8 @@ export class ThreeRenderer {
       const damping = Math.min(1, deltaSeconds * 8);
       enemyEntry.x += (target.x - enemyEntry.x) * damping;
       enemyEntry.z += (target.z - enemyEntry.z) * damping;
-      enemyEntry.mesh.position.set(enemyEntry.x, 0, enemyEntry.z);
+      const bob = enemy.alive ? Math.sin(performance.now() * 0.004 + enemy.x) * 0.04 : 0;
+      enemyEntry.mesh.position.set(enemyEntry.x, bob, enemyEntry.z);
 
       if (enemy.alive && state.player) {
         const lookX = this.playerVisual.x - enemyEntry.x;
@@ -208,6 +332,8 @@ export class ThreeRenderer {
         enemyEntry.yaw = Math.atan2(lookX, lookZ);
         enemyEntry.mesh.rotation.y = enemyEntry.yaw;
       }
+
+      this.updateActorEffects(enemyEntry.mesh, deltaSeconds);
     });
 
     this.enemyMeshes.forEach((entry, id) => {
@@ -218,21 +344,49 @@ export class ThreeRenderer {
     });
   }
 
+  updateFloatingTexts(deltaSeconds) {
+    this.combatTextSprites = this.combatTextSprites.filter((entry) => {
+      entry.ttl -= deltaSeconds;
+      entry.sprite.position.y += deltaSeconds * 1.2;
+      entry.sprite.material.opacity = Math.max(0, entry.ttl / 0.9);
+      if (entry.ttl <= 0) {
+        this.scene.remove(entry.sprite);
+        entry.sprite.material.map.dispose();
+        entry.sprite.material.dispose();
+        return false;
+      }
+      return true;
+    });
+  }
+
   updateCamera(deltaSeconds) {
-    const target = new THREE.Vector3(this.playerVisual.x, 0.7, this.playerVisual.z);
-    const offset = new THREE.Vector3(-4.6, 7.2, 5.5);
+    const target = new THREE.Vector3(this.playerVisual.x, 0.8, this.playerVisual.z);
+    const offset = new THREE.Vector3(-4.2, 6.8, 4.7);
     const desired = target.clone().add(offset);
     const cameraDamping = Math.min(1, deltaSeconds * 5);
 
     this.camera.position.lerp(desired, cameraDamping);
     this.cameraTarget.lerp(target, cameraDamping);
+
+    if (this.playerAttackPulse > 0) {
+      this.playerAttackPulse = Math.max(0, this.playerAttackPulse - deltaSeconds);
+    }
+
+    if (this.cameraShake > 0) {
+      this.cameraShake = Math.max(0, this.cameraShake - deltaSeconds * 0.9);
+      this.camera.position.x += (Math.random() - 0.5) * this.cameraShake * 0.18;
+      this.camera.position.y += (Math.random() - 0.5) * this.cameraShake * 0.16;
+    }
+
     this.camera.lookAt(this.cameraTarget);
   }
 
   render(state, deltaSeconds) {
     this.rebuildDungeon(state.dungeon);
+    this.processCombatEvents(state);
     this.syncPlayer(state, deltaSeconds);
     this.syncEnemies(state, deltaSeconds);
+    this.updateFloatingTexts(deltaSeconds);
 
     if (state.player) {
       this.updateCamera(deltaSeconds);
@@ -246,3 +400,5 @@ export class ThreeRenderer {
     this.renderer.dispose();
   }
 }
+
+export { BASE_STATUS };
