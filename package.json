@@ -9,7 +9,7 @@
     "start": "node server/index.js",
     "desktop": "node desktop-launcher.js",
     "test": "node --test",
-    "build:win-exe": "pkg desktop-launcher.js --targets node18-win-x64 --output dist/DungeonCrawlerMMO.exe"
+    "build:win-exe": "pkg . --targets node18-win-x64 --output dist/DungeonCrawlerMMO.exe"
   },
   "dependencies": {
     "express": "^4.18.2",

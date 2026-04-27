@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const { prepareStaticAssets } = require('./runtime-assets');
 
 class Dungeon {
   constructor(level, width = 50, height = 50) {
@@ -196,7 +197,12 @@ function createGameServer(options = {}) {
   const port = options.port ?? (Number(process.env.PORT) || 3000);
   const host = options.host ?? '0.0.0.0';
 
-  app.use(express.static(path.join(__dirname, '../public')));
+  const staticDir = prepareStaticAssets();
+
+  app.use(express.static(staticDir));
+  app.get('/', (_req, res) => {
+    res.sendFile(path.join(staticDir, 'index.html'));
+  });
 
   const gameState = {
     players: {},
