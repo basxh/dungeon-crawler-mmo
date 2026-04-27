@@ -45,3 +45,24 @@ npm run dev
 ```
 
 Open http://localhost:3000
+
+## Windows EXE bauen
+
+Das Spiel kann als Windows-EXE gebaut werden. Die EXE startet den lokalen Spielserver und öffnet das Spiel automatisch im Browser.
+
+```bash
+npm install
+npm run build:win-exe
+```
+
+Die fertige Datei liegt dann hier:
+
+```bash
+dist/DungeonCrawlerMMO.exe
+```
+
+Zum lokalen Testen des Desktop-Starters ohne Build:
+
+```bash
+npm run desktop
+```
